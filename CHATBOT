@@ -1,0 +1,38 @@
+import re
+
+def chatbot():
+    print("Hello! I'm a simple chatbot. How can I help you today?")
+
+    while True:
+        # Take user input
+        user_input = input("You: ").lower()
+
+        # Check if user wants to exit the chat
+        if 'exit' in user_input or 'bye' in user_input:
+            print("Goodbye! Have a nice day!")
+            break
+
+        # Respond based on predefined rules
+        elif re.search(r'\b(hi|hello|hey)\b', user_input):
+            print("Chatbot: Hello! How can I assist you today?")
+
+        elif re.search(r'\b(how are you)\b', user_input):
+            print("Chatbot: I'm just a program, but I'm doing great! Thanks for asking.")
+
+        elif re.search(r'\b(your name)\b', user_input):
+            print("Chatbot: My name is Chatbot! I'm here to help you.")
+
+        elif re.search(r'\b(what is your purpose)\b', user_input):
+            print("Chatbot: My purpose is to assist you with basic questions and provide information.")
+
+        elif re.search(r'\b(weather)\b', user_input):
+            print("Chatbot: Sorry, I can't check the weather right now, but you can check a weather app!")
+
+        elif re.search(r'\b(help)\b', user_input):
+            print("Chatbot: Sure, I can help! You can ask me about my name, purpose, or just chat with me.")
+
+        else:
+            print("Chatbot: I'm sorry, I don't understand that. Can you rephrase?")
+
+# Start the chatbot
+chatbot()
