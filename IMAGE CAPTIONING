@@ -1,0 +1,111 @@
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.applications.resnet50 import preprocess_input
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout, Input
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+
+# Load the pre-trained ResNet50 model
+def load_resnet_model():
+    model = ResNet50(weights='imagenet', include_top=False, pooling='avg')
+    return model
+
+# Extract features from an image
+def extract_features(model, image_path):
+    img = load_img(image_path, target_size=(224, 224))
+    img_array = img_to_array(img)
+    img_array = preprocess_input(img_array)
+    img_array = img_array.reshape((1, img_array.shape[0], img_array.shape[1], img_array.shape[2]))
+    features = model.predict(img_array)
+    return features
+
+# Prepare the tokenizer and fit it on captions
+def prepare_tokenizer(captions):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(captions)
+    return tokenizer
+
+# Create the decoder model
+def create_decoder(vocab_size, max_length):
+    model = Sequential()
+    model.add(Embedding(vocab_size, 256, mask_zero=True))
+    model.add(LSTM(256))
+    model.add(Dropout(0.5))
+    model.add(Dense(vocab_size, activation='softmax'))
+    return model
+
+# Generate captions for an image using the trained decoder
+def generate_caption(model, tokenizer, max_length, image_path):
+    features = extract_features(resnet_model, image_path)
+    features = features.reshape((1, features.shape[1]))
+    
+    # Start with the start token (assuming it's 1)
+    caption = [1]
+    
+    # Generate words until the end token is predicted or max length is reached
+    for _ in range(max_length):
+        sequence = pad_sequences([caption], maxlen=max_length)
+        yhat = model.predict([features, sequence], verbose=0)
+        yhat = np.argmax(yhat)  # Get the word with the highest probability
+        
+        if yhat == 0:  # Assuming 0 is the end token
+            break
+            
+        caption.append(yhat)
+
+    # Convert indices to words
+    caption_text = tokenizer.sequences_to_texts([caption])[0]
+    
+    return caption_text
+
+# Load data (this should be replaced with your actual dataset)
+# Example: images and captions should be lists of paths and corresponding texts.
+images = ['path/to/image1.jpg', 'path/to/image2.jpg']  # Replace with your image paths
+captions = ['a dog playing', 'a cat sitting on a mat']   # Replace with your captions
+
+# Load ResNet model
+resnet_model = load_resnet_model()
+
+# Prepare tokenizer and fit on captions
+tokenizer = prepare_tokenizer(captions)
+vocab_size = len(tokenizer.word_index) + 1  # +1 for padding token
+
+# Prepare sequences for training (this is a simplified example)
+max_length = max(len(c.split()) for c in captions)  # Maximum length of captions
+X1, X2, y = [], [], []
+
+for i in range(len(images)):
+    # Extract features from each image
+    feature = extract_features(resnet_model, images[i])
+    
+    # Create input-output pairs for training (for simplicity)
+    for word in captions[i].split():
+        X1.append(feature)
+        X2.append(tokenizer.texts_to_sequences([word])[0][0])  # Get word index
+        y.append(tokenizer.texts_to_sequences([' '.join(captions[i].split()[:j+1])])[0][-1] for j in range(len(captions[i].split())))
+
+X1 = np.array(X1).reshape(len(X1), -1)  # Reshape features array to fit the model input
+
+# Split into training and validation sets
+X1_train, X1_val, X2_train, X2_val, y_train, y_val = train_test_split(X1, X2, y)
+
+# Create decoder model
+decoder_model = create_decoder(vocab_size, max_length)
+
+# Compile the model (using categorical crossentropy if one-hot encoded outputs are used)
+decoder_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+
+# Fit the model (this is a simplified example; adjust epochs and batch size as needed)
+decoder_model.fit([X1_train, pad_sequences(X2_train)], y_train,
+                  epochs=20,
+                  batch_size=32,
+                  validation_data=([X1_val, pad_sequences(X2_val)], y_val))
+
+# Example usage: Generate a caption for a new image
+caption_generated = generate_caption(decoder_model, tokenizer, max_length, 'path/to/new_image.jpg')
+print("Generated Caption:", caption_generated)
