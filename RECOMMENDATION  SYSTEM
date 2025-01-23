@@ -1,0 +1,54 @@
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import train_test_split
+from surprise import accuracy
+
+# Sample data: User ID, Movie ID, Rating
+data = [
+    (1, 'Movie1', 5),
+    (1, 'Movie2', 3),
+    (1, 'Movie3', 4),
+    (2, 'Movie1', 4),
+    (2, 'Movie2', 2),
+    (2, 'Movie3', 5),
+    (3, 'Movie1', 3),
+    (3, 'Movie2', 4),
+    (3, 'Movie3', 4)
+]
+
+# Convert data into a DataFrame and use Surprise's Reader
+reader = Reader(rating_scale=(1, 5))
+data = Dataset.load_from_df(data, reader)
+
+# Split the data into training and testing sets
+trainset, testset = train_test_split(data, test_size=0.25)
+
+# Use SVD (Singular Value Decomposition) algorithm for collaborative filtering
+algo = SVD()
+
+# Train the algorithm on the training set
+algo.fit(trainset)
+
+# Make predictions on the test set and calculate accuracy
+predictions = algo.test(testset)
+print(f"RMSE: {accuracy.rmse(predictions)}")
+# Recommend movies for user 1
+def get_movie_recommendations(user_id, num_recommendations=3):
+    # Get all movies in the dataset
+    all_movies = ['Movie1', 'Movie2', 'Movie3']
+    recommendations = []
+    
+    # Predict ratings for all movies the user hasn't rated yet
+    for movie in all_movies:
+        if not any(x[0] == user_id and x[1] == movie for x in data):
+            prediction = algo.predict(user_id, movie)
+            recommendations.append((movie, prediction.est))
+    
+    # Sort recommendations by predicted rating
+    recommendations.sort(key=lambda x: x[1], reverse=True)
+    
+    # Return top recommended movies
+    return [movie for movie, _ in recommendations[:num_recommendations]]
+
+# Get movie recommendations for user 1
+recommended_movies = get_movie_recommendations(1)
+print(f"Recommended Movies for User 1: {recommended_movies}")
