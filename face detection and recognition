@@ -1,0 +1,81 @@
+import cv2
+import dlib
+import numpy as np
+
+# Initialize the face detector, landmark predictor, and face recognition model from dlib
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')  # Path to your predictor file
+recognizer = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')  # Path to your recognition model
+
+# A sample database of known faces and names (face descriptors will be stored here)
+known_face_descriptors = []  # List to store face descriptors
+known_face_names = []  # List to store names corresponding to descriptors
+
+# Function to compare faces and find the closest match
+def compare_faces(face_descriptor, known_face_descriptors, known_face_names, threshold=0.6):
+    distances = []
+    for known_descriptor in known_face_descriptors:
+        # Calculate Euclidean distance between the detected face and the stored descriptors
+        distance = np.linalg.norm(face_descriptor - known_descriptor)
+        distances.append(distance)
+    
+    # Find the minimum distance and return the corresponding name if it's below the threshold
+    min_distance = min(distances)
+    if min_distance < threshold:
+        match_index = distances.index(min_distance)
+        return known_face_names[match_index]
+    else:
+        return "Unknown"
+
+# Function to process image and perform face detection + recognition
+def process_image(image_path):
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Detect faces in the grayscale image
+    faces = detector(gray)
+
+    for face in faces:
+        # Get landmarks for the detected face
+        landmarks = predictor(image, face)
+        
+        # Compute the face descriptor (embedding) for the detected face
+        face_descriptor = recognizer.compute_face_descriptor(image, landmarks)
+
+        # Compare the descriptor with the known faces and get the name
+        name = compare_faces(np.array(face_descriptor), known_face_descriptors, known_face_names)
+        
+        # Draw rectangle around the face and label with the name
+        cv2.rectangle(image, (face.left(), face.top()), (face.right(), face.bottom()), (0, 255, 0), 2)
+        cv2.putText(image, name, (face.left(), face.top() - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+    # Display the result
+    cv2.imshow("Face Detection and Recognition", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+# Function to add a new known face to the database
+def add_known_face(image_path, name):
+    image = cv2.imread(image_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = detector(gray)
+
+    if len(faces) == 1:  # Ensure only one face is detected
+        face = faces[0]
+        landmarks = predictor(image, face)
+        face_descriptor = recognizer.compute_face_descriptor(image, landmarks)
+
+        known_face_descriptors.append(np.array(face_descriptor))
+        known_face_names.append(name)
+        print(f"Added {name} to known faces database!")
+    else:
+        print("No face or multiple faces detected. Please ensure one clear face is present.")
+
+# Example usage
+if __name__ == "__main__":
+    # Add known faces (you can do this for multiple faces)
+    add_known_face('known_person1.jpg', 'Person 1')  # Replace with actual image path
+    add_known_face('known_person2.jpg', 'Person 2')  # Replace with actual image path
+
+    # Process a test image and perform face detection and recognition
+    process_image('test_image.jpg')  # Replace with your test image path
